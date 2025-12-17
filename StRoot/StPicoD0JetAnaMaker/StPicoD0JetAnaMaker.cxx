@@ -262,7 +262,7 @@ std::vector<fj::PseudoJet> StPicoD0JetAnaMaker::JetReconstructionShape(vector<fj
   std::cout.flush();
 #endif
 */
-	bool fPhiModulation = true;
+	bool fPhiModulation = false;
 	    //Scaling    //v2 settings
     double v2 = 0.0;
 //https://journals.aps.org/prc/pdf/10.1103/PhysRevC.77.054901
@@ -300,13 +300,13 @@ std::vector<fj::PseudoJet> StPicoD0JetAnaMaker::JetReconstructionShape(vector<fj
 	fj::JetDefinition jet_def(fj::antikt_algorithm, fR, fj::E_scheme, fj::Best);
 //std::cout << jet_def.description() << std::endl;
 	// Define area for jet reconstruction
-	
+	/*
 	Int_t seed1 = 12345;
 	Int_t seed2 = 56789;
 	std::vector<Int_t> seeds = { static_cast<Int_t>(seed1), static_cast<Int_t>(seed2) };
-	
-	fj::AreaDefinition area_def_jet2(fj::active_area_explicit_ghosts, fj::GhostedAreaSpec(1.2, 1, 0.005)); //CHANGE!!!
-	fastjet::AreaDefinition area_def_jet = area_def_jet2.with_fixed_seed(seeds); //CHANGE!!!
+	*/
+	fj::AreaDefinition area_def_jet(fj::active_area_explicit_ghosts, fj::GhostedAreaSpec(1.2, 1, 0.005));
+	//fastjet::AreaDefinition area_def_jet = area_def_jet2.with_fixed_seed(seeds);
 
    //cout << "Clustering with " << jet_def.description() << endl;
   // cout << "Area defn with " << area_def_jet.description() << endl;
@@ -323,13 +323,13 @@ std::vector<fj::PseudoJet> StPicoD0JetAnaMaker::JetReconstructionShape(vector<fj
 	//----------------------------------------------------------
 	//--- Background Estimation ---
 	
-	std::vector<Int_t> seeds2 = { static_cast<Int_t>(12345), static_cast<Int_t>(56789) };
+	////std::vector<Int_t> seeds2 = { static_cast<Int_t>(12345), static_cast<Int_t>(56789) };
 	
 	fj::JetDefinition jet_def_bkgd(fj::kt_algorithm, fR, fj::E_scheme, fj::Best); // Define jet algorithm for background estimation
-	fj::AreaDefinition area_def_bkgd2(fj::active_area_explicit_ghosts, fj::GhostedAreaSpec(1.2, 1, 0.005)); // Define the area for background estimation //CHANGE!!!
-	fastjet::AreaDefinition area_def_bkgd = area_def_bkgd2.with_fixed_seed(seeds2); //CHANGE!!!!
+	fj::AreaDefinition area_def_bkgd(fj::active_area_explicit_ghosts, fj::GhostedAreaSpec(1.2, 1, 0.005)); // Define the area for background estimation
+	////fastjet::AreaDefinition area_def_bkgd = area_def_bkgd2.with_fixed_seed(seeds2);
 	// Decide how many jets to remove based on centrality
-	int nJetsRemove = 2; //CHANGE!!!
+	int nJetsRemove = 1;
 	if (fCentrality == 7 || fCentrality == 8) nJetsRemove = 2;
 
 	// Selector to choose the hardest jets based on centrality and eta
@@ -339,7 +339,7 @@ std::vector<fj::PseudoJet> StPicoD0JetAnaMaker::JetReconstructionShape(vector<fj
 	fj::JetMedianBackgroundEstimator bkgd_estimator(selector, jet_def_bkgd, area_def_bkgd);
 	
 	//Estimation of the background using only charged tracks
-	if (fPhiModulation&&false) bkgd_estimator.set_rescaling_class(&rescaling);
+	if (fPhiModulation) bkgd_estimator.set_rescaling_class(&rescaling);
 	bkgd_estimator.set_particles(fInputVectors);
 	
 	if (fBackSub){
@@ -372,36 +372,16 @@ std::vector<fj::PseudoJet> StPicoD0JetAnaMaker::JetReconstructionShape(vector<fj
 	    // Nejprve zkontrolujeme constituenty jetu, zda obsahuje D⁰ meson
 	    std::vector<fastjet::PseudoJet> constituents = jet.constituents();
 	    int d0_count = 0;
-	    for (size_t j = 0; j < constituents.size(); j++) {
-	    /*
-		// Předpokládáme, že D⁰ meson má hmotnost větší než 1 GeV
-		if (constituents[j].m() > 1.0) {
-		    d0_count++;
-		}
-	    */
 	    
-	    int flag = constituents[j].user_index();
-		if (std::abs(flag) == 2) {
-		    d0_count++;
-		}
-		
-
-      
-      
-
+	    for (size_t j = 0; j < constituents.size(); j++) {
+	    
+		    int flag = constituents[j].user_index();
+			if (std::abs(flag) == 2) {
+			    d0_count++;
+			}
 	    	
 	    }
-	  /*  
-	   if (d0_count == 1){
-	  
-	   for (size_t j = 0; j < constituents.size(); j++) {
-	   	   Int_t uid = constituents[j].user_index();
-	         cout << "pT: " << constituents[j].perp() << " flag: " << uid << endl;	
-	   }
-	   
-	}
-	
-	*/
+
 	    // Pokud je v jetu právě jeden D⁰ meson, provedeme odečet angularity
 	    if (d0_count == 1) {
 		fAngul10half = gensub(*shape10half, jet, info);
@@ -413,57 +393,7 @@ std::vector<fj::PseudoJet> StPicoD0JetAnaMaker::JetReconstructionShape(vector<fj
 	    } 
 	    
 	}
-	
-//#ifdef DEBUG_SHAPE_DUMP
 
-/*
-if (
-  // --- DEBUG: dump constituentů po rekonstrukci + diff vůči vstupu ---
-  std::unordered_set<std::string> _seen;  _seen.clear();
-
-  std::cout << "[Shape][END] N_jets=" << fInclusiveJets.size() << std::endl;
-  for (size_t i = 0; i < fInclusiveJets.size(); ++i) {
-    const auto& jet = fInclusiveJets[i];
-    auto cons = jet.constituents();
-    std::cout << "  [jet " << i
-              << "] pt=" << std::fixed << std::setprecision(6) << jet.perp()
-              << " y=" << jet.rap()
-              << " eta=" << jet.pseudorapidity()
-              << " nconst=" << cons.size() << "\n";
-    for (const auto& p : cons) {
-      const int f = p.user_index();
-      if (f == -1) continue; // ghosty přeskočit
-
-      const double E = p.E(), px = p.px(), py = p.py(), pz = p.pz();
-      const double eta = p.pseudorapidity();
-      const double y = p.rap();
-
-      const auto sig = _fmt(px)+","+_fmt(py)+","+_fmt(pz)+","+_fmt(E)+";f="+std::to_string(f);
-      _seen.insert(sig);
-
-      std::cout
-        << "    E=" << E
-        << " px=" << px << " py=" << py << " pz=" << pz
-        << " eta=" << eta << " y=" << y
-        << " flag=" << f << "\n";
-    }
-  }
-
-  // Vypiš, co zůstalo z inputu „nepoužité“ v žádném jetu
-  size_t n_missing = 0;
-  for (const auto& s : _inputsigs) {
-    if (_seen.find(s) == _seen.end()) ++n_missing;
-  }
-  std::cout << "[Shape][MISSING] count=" << n_missing << std::endl;
-  if (n_missing > 0) {
-    std::cout << "  (nize podpisy px,py,pz,E;f=flag zaokrouhlene na 1e-6)\n";
-    for (const auto& s : _inputsigs) {
-      if (_seen.find(s) == _seen.end()) std::cout << "    " << s << "\n";
-    }
-  }
-  std::cout.flush();
-#endif
-*/
 	return fInclusiveJets;
 	
 	
@@ -477,7 +407,7 @@ Int_t NiterA[4] = {4,3,2,2};
 Double_t R_max1A[4] = {0.05,0.125,0.100,0.150};
 Double_t R_max2A[4] = {0.005,0.005,0.175,0.100};
 Bool_t fMassiveTest = true;
-Bool_t fPhiModulation = true;
+Bool_t fPhiModulation = false;
 /*****/
    //Scaling    //v2 settings
     Double_t v2 = 0.0;
@@ -510,14 +440,14 @@ Bool_t fPhiModulation = true;
     
 	//--- Background Estimation ---
 	fj::JetDefinition jet_def_bkgd(fj::kt_algorithm, fR, fj::E_scheme, fj::Best); // Define jet algorithm for background estimation
-	fj::AreaDefinition area_def_bkgd(fj::active_area_explicit_ghosts, fj::GhostedAreaSpec(1.2, 1, 0.01)); // Define the area for background estimation
+	fj::AreaDefinition area_def_bkgd(fj::active_area_explicit_ghosts, fj::GhostedAreaSpec(1.2, 1, 0.005)); // Define the area for background estimation
 
 	// Decide how many jets to remove based on centrality
 	Int_t nJetsRemove = 1;
 	if (fCentrality == 7 || fCentrality == 8) nJetsRemove = 2;
 
 	// Selector to choose the hardest jets based on centrality and eta
-	fj::Selector selector = (!fj::SelectorNHardest(nJetsRemove)) * fj::SelectorAbsEtaMax(0.6) * fj::SelectorPtMin(0.01);
+	fj::Selector selector = (!fj::SelectorNHardest(nJetsRemove)) * fj::SelectorAbsEtaMax(0.6);// * fj::SelectorPtMin(0.01);
 
 	// Define seeds for random number generator (used for area calculation)
 	/*
@@ -632,7 +562,7 @@ Bool_t fPhiModulation = true;
 	fj::JetDefinition jet_def(fj::antikt_algorithm, fR, fj::E_scheme, fj::Best);
 
 	// Define area for jet reconstruction
-	fj::AreaDefinition area_def_jet(fj::active_area, fj::GhostedAreaSpec(1.2, 1, 0.01));
+	fj::AreaDefinition area_def_jet(fj::active_area, fj::GhostedAreaSpec(1.2, 1, 0.005));
 	////fastjet::AreaDefinition area_def_jet = area_def_jet2.with_fixed_seed(seeds);
 
 	// Set particles for background estimator (background estimation for the input particles)
@@ -697,11 +627,11 @@ Bool_t fPhiModulation = true;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 Int_t StPicoD0JetAnaMaker::Init(){
-
+/*
 	grefmultCorr = CentralityMaker::instance()->getgRefMultCorr_P16id();
     grefmultCorr->setVzForWeight(6, -6.0, 6.0);
   grefmultCorr->readScaleForWeight("StRoot/StRefMultCorr/macros/weight_grefmult_vpd30_vpd5_Run14_P16id.txt");
-
+*/
   	//Output file
   	mOutputFile = new TFile(mOutFileName.Data(), "RECREATE");
   	mOutputFile->cd();
@@ -949,20 +879,6 @@ Int_t StPicoD0JetAnaMaker::Finish(){
 Int_t StPicoD0JetAnaMaker::Make()
 {
 
-//CHANGE!!!//CHANGE!!!//CHANGE!!!//CHANGE!!!
-    // get base class pointer
-  mBaseMaker = static_cast<StJetFrameworkPicoBase*>(GetMaker("baseClassMaker"));
-  if(!mBaseMaker) {
-    LOG_WARN << " No baseMaker! Skip! " << endm;
-    return kStWarn;
-  }
-
-  // get bad run, dead & bad tower lists
-  badRuns = mBaseMaker->GetBadRuns();
-  deadTowers = mBaseMaker->GetDeadTowers();
-  badTowers = mBaseMaker->GetBadTowers();
-//CHANGE!!!//CHANGE!!!//CHANGE!!!//CHANGE!!!
-
   //Check if everything is loaded properly
   if (!mPicoDstMaker){
     LOG_WARN << " StPicoD0JetAnaMaker - No PicoDstMaker! Skip! " << endm;
@@ -991,18 +907,16 @@ Int_t StPicoD0JetAnaMaker::Make()
   Bool_t isBadRun = false;
   runId = event->runId();
   
-  //cout << runId <<endl;
-/*
   //2014 good run list //TEST
   if (mYear == 2014 && mycuts::AllBadRunList2014.count(runId)) {
       isBadRun = true;
   }
-  */
-  if (mYear == 2014 && mycuts::goodRun2014.count(runId)){ //CHANGE
+  /*
+  if (mYear == 2014 && mycuts::goodRun2014.count(runId)){
   isBadRun = false;
   } else if (mYear == 2014) isBadRun = true;
-  
-  if (mYear == 2014 && isBadRun) continue;
+  */
+  if (mYear == 2014 && isBadRun) return kStOK;
 
   //Check if the event is good (vertex, pile-up, MB trigger)
   if(!(isGoodEvent(mYear,hEventsCuts))) return kStOK;
@@ -1019,21 +933,12 @@ Int_t StPicoD0JetAnaMaker::Make()
   //Loadig of the GRefMultCorr information
   mGRefMultCorrUtil->init(runId);
   mGRefMultCorrUtil->initEvent(event->grefMult(),pVtx.z(),event->ZDCx()) ;
-  
-
 
   //Check if the event is in a bad run (due to centrality estimation)
   if (mGRefMultCorrUtil->isBadRun(runId)) return kStOK;
 
-
-  //TO DELETE
-  
-  grefmultCorr->init(runId);
-  grefmultCorr->initEvent(event->grefMult(),pVtx.z(),event->ZDCx()) ;
-
-
   //Loading of the centrality
-  centrality = grefmultCorr->getCentralityBin9();
+  centrality = mGRefMultCorrUtil->getCentralityBin9();
 
   //Check if the centrality is in the range
   if(centrality<0) return kStOK;
@@ -1042,7 +947,7 @@ Int_t StPicoD0JetAnaMaker::Make()
   hEventsCuts->Fill(6);
 
   //Loading of the weight for the centrality correction
-  weightCentrality = grefmultCorr->getWeight();
+  weightCentrality = mGRefMultCorrUtil->getWeight();
 
   //Filling events histograms
   hVtxZ->Fill(pVtx.z());
@@ -1051,12 +956,8 @@ Int_t StPicoD0JetAnaMaker::Make()
   hCentrality->Fill(centrality);
   hCentralityW->Fill(centrality,weightCentrality);
   
-  ////EventStats->Fill(picoDst->event()->runId(),centrality,weightCentrality); 
-
   //Loading event information
   eventId = event->eventId();
-  ///if (eventId != 415529) return kStOK;
-
   gRefMult = event->grefMult();
 
   //Loading of the number of tracks in the event
@@ -1190,13 +1091,12 @@ Int_t StPicoD0JetAnaMaker::Make()
 			    //The event is noted
 			    IsThereD0 = true;
 
-			    double ED0pionMass =sqrt( M_PION_PLUS*M_PION_PLUS+kaonPion.Px()*kaonPion.Px()+kaonPion.Py()*kaonPion.Py()+kaonPion.Pz()*kaonPion.Pz());
+			    ////double ED0pionMass =sqrt( M_PION_PLUS*M_PION_PLUS+kaonPion.Px()*kaonPion.Px()+kaonPion.Py()*kaonPion.Py()+kaonPion.Pz()*kaonPion.Pz());
 			    
 			    //Saving of D0 four-momenta // E,       px,       py,        pz,         D0_antiD0,            D0 mass;
-			    //FourMomentum D0_actual = {kaonPion.Energy(), kaonPion.Px(), kaonPion.Py(),  kaonPion.Pz(), (Double_t)pion->charge(), d0Mass};
-			    FourMomentum D0_actual = {ED0pionMass, kaonPion.Px(), kaonPion.Py(),  kaonPion.Pz(), (Double_t)pion->charge(), d0Mass}; //test
+			    FourMomentum D0_actual = {kaonPion.Energy(), kaonPion.Px(), kaonPion.Py(),  kaonPion.Pz(), (Double_t)pion->charge(), d0Mass};
+			    ////FourMomentum D0_actual = {ED0pionMass, kaonPion.Px(), kaonPion.Py(),  kaonPion.Pz(), (Double_t)pion->charge(), d0Mass}; //test
 			    D0_fourmomentum.push_back(D0_actual);
-			 
 
 			    //Loading of the rescaled RunID
 			    //Int_t runIndex = mPrescales->runIndex(mPicoD0Event->runId());
@@ -1429,17 +1329,11 @@ Int_t StPicoD0JetAnaMaker::Make()
            
            if(mYear==2014) {
                   //Exclude bad towers, saved in JetInfo.h
-                  ////if (BadTowerMap[realtowID-1]) continue; ///CHANGE!!!
+                  if (BadTowerMap[realtowID-1]) continue;
 
                   //Calculate the tower energy
-                  ///towE = GetTowerCalibEnergy(realtowID); ///CHANGE!!!
+                  towE = GetTowerCalibEnergy(realtowID);
                   towEUncal = towHit->energy();         
-                  towE = towHit->energy();///CHANGE!!!
-                  bool TowerOK = mBaseMaker->IsTowerOK(realtowID);      // kTRUE means GOOD///CHANGE!!!
-   		  bool TowerDead = mBaseMaker->IsTowerDead(realtowID);  // kTRUE means BAD///CHANGE!!!
-		  if(!TowerOK)  { continue; }///CHANGE!!!
-		  if(TowerDead) {continue; }///CHANGE!!!
-
               }
            if(mYear==2016) {
                   //Exclude bad towers, saved in Calibration2016.h
@@ -1472,9 +1366,8 @@ Int_t StPicoD0JetAnaMaker::Make()
            if (ET > 30) {
                 return kStOK;
            }
-////////////////////////////////////////////////////////////////////////////////// comp. test
-	   //Double_t p = 1.0*TMath::Sqrt(towE*towE - 0*0);
-	   Double_t p = 1.0*TMath::Sqrt(towE*towE - M_PION_PLUS*M_PION_PLUS); //TEST CHANGE
+
+	   Double_t p = 1.0*TMath::Sqrt(towE*towE - 0*0);
 	  
 	   Double_t posX = towerPosition.x();
   	   Double_t posY = towerPosition.y();
@@ -1497,13 +1390,6 @@ Int_t StPicoD0JetAnaMaker::Make()
                neutraljetTracks.push_back(inputTower);
                //Add the neutral particle to the inclusive particle vector
                input_particles.push_back(inputTower);
-               
-               ////cout << "input_particles.push_back({"<<px<<","<<py<<","<<pz<<","<<towE<<"}); //neutral" << endl;
-               //cout << px <<"," << py << "," << pz << endl;
-              // if (abs(inputTower.px()+0.229622) < 0.0001) cerr << "towID: " << iTow << " ET: " << ET << endl;
-                       //Debug:
-
-	       ////cout << "px: " << inputTower.px() << " py: " << inputTower.py() << " pz: " << inputTower.pz() << " E: " << inputTower.E() << endl;
                
                TVector3 NeutralPart(px, py, pz);
                hJetNeutralPt->Fill(NeutralPart.Perp(), weightCentrality);
@@ -1983,9 +1869,9 @@ Bool_t StPicoD0JetAnaMaker::GetCaloTrackMomentum(StPicoDst *mPicoDst, TVector3 m
       //Calculation of the DCA in the x-y plane
       ////Float_t dca_z = dcaPoint.z() - vtx_z; //Test
       
-      ///Float_t dca_z = trk->gDCAz(vtx_z); //? TO DO !!!CHANGE
+      Float_t dca_z = trk->gDCAz(vtx_z);
       
-      Float_t dca_z = trk->gDCA(vtx_x, vtx_y, vtx_z); //? TO DO
+      ////Float_t dca_z = trk->gDCA(vtx_x, vtx_y, vtx_z); //? TO DO
       
       //Exclude tracks with a DCA to the primary vertex in z of more than maxdcazhadroncorr (in RunPicoD0AnaMaker.C)
       if (!isDaughter && (fabs(dca_z) > maxdcazhadroncorr)) continue;

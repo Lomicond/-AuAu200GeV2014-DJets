@@ -80,6 +80,7 @@ void RunPicoD0JetAnaMaker(string pico="testPico.list",
 
 //////
     // create base class maker pointer
+    /*
     StJetFrameworkPicoBase *baseMaker = new StJetFrameworkPicoBase("baseClassMaker");
     baseMaker->SetRunFlag(StJetFrameworkPicoBase::Run14_AuAu200_MB);                  // run flag (year)
     baseMaker->SetRejectBadRuns(kFALSE);             // switch to load and than omit bad runs
@@ -87,10 +88,10 @@ void RunPicoD0JetAnaMaker(string pico="testPico.list",
     baseMaker->SetBadTowerListVers(9990200);
     baseMaker->SetUsePrimaryTracks(kFALSE);       // use primary tracks
     //cout<<baseMaker->GetName()<<endl;  // print name of class instance
-
+*/
 //////
-   //StRefMultCorr* grefmultCorrUtil = new StRefMultCorr(RefMult, Runcode, prodID);
-   StRefMultCorr* grefmultCorrUtil = new StRefMultCorr("grefmult_P16id");
+   StRefMultCorr* grefmultCorrUtil = new StRefMultCorr(RefMult, Runcode, prodID);
+   //StRefMultCorr* grefmultCorrUtil = new StRefMultCorr("grefmult_P16id");
    //::kgrefmult_P16id
    
    StPicoDstMaker* picoDstMaker = new StPicoDstMaker(StPicoDstMaker::IoRead, pico.c_str(), "picoDstMaker");

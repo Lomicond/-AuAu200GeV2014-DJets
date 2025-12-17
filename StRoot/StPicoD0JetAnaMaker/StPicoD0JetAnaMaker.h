@@ -46,7 +46,7 @@
 #include "StiMaker/StKFVerticesCollection.h"
 #include "StPhysicalHelixD.hh"
 #include "TLorentzVector.h"
-#include "StJetFrameworkPicoBase.h"
+////#include "StJetFrameworkPicoBase.h"
 //#ifdef FASTJET_VERSION
 
 #ifndef __CINT__
@@ -148,9 +148,10 @@ class StPicoD0JetAnaMaker : public StMaker
     const Double_t mBarrelRadius = 225.405;
 
 TTree* Jets;
-StRefMultCorr* grefmultCorr;
+//StRefMultCorr* grefmultCorr;
 
 ///CHANGE!!!!
+/*
     StJetFrameworkPicoBase *mBaseMaker;
         // bad and dead tower list
     std::set<Int_t>        badTowers;
@@ -158,6 +159,7 @@ StRefMultCorr* grefmultCorr;
 
     // bad run list
     std::set<Int_t>        badRuns;
+    */
 ///CHANGE!!!!
 //Event
 Int_t runId;
