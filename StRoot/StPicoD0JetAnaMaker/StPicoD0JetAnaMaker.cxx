@@ -79,6 +79,14 @@
 #include "fastjet/contrib/GenericSubtractor.hh"
 #include "fastjet/contrib/ShapeWithPartition.hh"
 
+//To delete
+#include "StRoot/StRefMultCorr/StRefMultCorr.h"
+#include "StRoot/StRefMultCorr/CentralityMaker.h"
+//#include <iomanip>
+//#include <unordered_set>
+//#include <sstream>
+//#define DEBUG_SHAPE_DUMP
+
 
 // jet includes
 #include "FJ_includes.h"
@@ -226,8 +234,34 @@ return;
 }
 //////
 std::vector<fj::PseudoJet> StPicoD0JetAnaMaker::JetReconstructionShape(vector<fj::PseudoJet> fInputVectors, Int_t fCentrality, Double_t fR, Bool_t fBackSub, Double_t fEP_psi2, Int_t difiter){
+/*
+#ifdef DEBUG_SHAPE_DUMP
+  // --- DEBUG: dump vstupních částic pro Shape ---
+  auto _fmt = [](double x){ std::ostringstream s; s<<std::fixed<<std::setprecision(6)<<x; return s.str(); };
+  auto _sig = [&](const fastjet::PseudoJet& p){
+    // unikátní podpis částice (zaokrouhlené komponenty + flag)
+    return _fmt(p.px()) + "," + _fmt(p.py()) + "," + _fmt(p.pz()) + "," + _fmt(p.E()) + ";f=" + std::to_string(p.user_index());
+  };
 
+  static std::unordered_set<std::string> _inputsigs; // přetrvá v rámci funkce mezi bloky
+  _inputsigs.clear();
 
+  std::cout << "\n[Shape][START] N_inputs=" << fInputVectors.size() << std::endl;
+  for (const auto& p : fInputVectors) {
+    const int f = p.user_index();
+    const double E = p.E(), px = p.px(), py = p.py(), pz = p.pz();
+    const double eta = p.pseudorapidity(); // η
+    const double y = p.rap();              // rapidita
+    _inputsigs.insert(_sig(p));
+    std::cout
+      << "  E=" << std::setprecision(6) << std::fixed << E
+      << " px=" << px << " py=" << py << " pz=" << pz
+      << " eta=" << eta << " y=" << y
+      << " flag=" << f << "\n";
+  }
+  std::cout.flush();
+#endif
+*/
 	bool fPhiModulation = true;
 	    //Scaling    //v2 settings
     double v2 = 0.0;
@@ -263,38 +297,49 @@ std::vector<fj::PseudoJet> StPicoD0JetAnaMaker::JetReconstructionShape(vector<fj
 	//-----------------------------------------------------------
 	
 	// Define jet algorithm for actual jet reconstruction (Anti-kt with radius fR)
-	fj::JetDefinition jet_def(fj::kt_algorithm, fR, fj::E_scheme, fj::Best);
-
+	fj::JetDefinition jet_def(fj::antikt_algorithm, fR, fj::E_scheme, fj::Best);
+//std::cout << jet_def.description() << std::endl;
 	// Define area for jet reconstruction
-	fj::AreaDefinition area_def_jet(fj::active_area_explicit_ghosts, fj::GhostedAreaSpec(1.2, 1, 0.01));
-	////fastjet::AreaDefinition area_def_jet = area_def_jet2.with_fixed_seed(seeds);
+	
+	Int_t seed1 = 12345;
+	Int_t seed2 = 56789;
+	std::vector<Int_t> seeds = { static_cast<Int_t>(seed1), static_cast<Int_t>(seed2) };
+	
+	fj::AreaDefinition area_def_jet2(fj::active_area_explicit_ghosts, fj::GhostedAreaSpec(1.2, 1, 0.005)); //CHANGE!!!
+	fastjet::AreaDefinition area_def_jet = area_def_jet2.with_fixed_seed(seeds); //CHANGE!!!
+
+   //cout << "Clustering with " << jet_def.description() << endl;
+  // cout << "Area defn with " << area_def_jet.description() << endl;
 
 	// Perform jet clustering with the background-subtracted (or original) particles
 	fClustSeq = new fj::ClusterSequenceArea(fInputVectors, jet_def, area_def_jet);
 	
 	// Sort the jets by transverse momentum (pt)
-	double ptmin = -1;
+	double ptmin = 0.;
 	vector<fastjet::PseudoJet> fInclusiveJets;
 	fInclusiveJets.clear();
 	fInclusiveJets = sorted_by_pt(fClustSeq->inclusive_jets(ptmin));
-	
+
 	//----------------------------------------------------------
 	//--- Background Estimation ---
+	
+	std::vector<Int_t> seeds2 = { static_cast<Int_t>(12345), static_cast<Int_t>(56789) };
+	
 	fj::JetDefinition jet_def_bkgd(fj::kt_algorithm, fR, fj::E_scheme, fj::Best); // Define jet algorithm for background estimation
-	fj::AreaDefinition area_def_bkgd(fj::active_area_explicit_ghosts, fj::GhostedAreaSpec(1.2, 1, 0.01)); // Define the area for background estimation
-
+	fj::AreaDefinition area_def_bkgd2(fj::active_area_explicit_ghosts, fj::GhostedAreaSpec(1.2, 1, 0.005)); // Define the area for background estimation //CHANGE!!!
+	fastjet::AreaDefinition area_def_bkgd = area_def_bkgd2.with_fixed_seed(seeds2); //CHANGE!!!!
 	// Decide how many jets to remove based on centrality
-	int nJetsRemove = 1;
+	int nJetsRemove = 2; //CHANGE!!!
 	if (fCentrality == 7 || fCentrality == 8) nJetsRemove = 2;
 
 	// Selector to choose the hardest jets based on centrality and eta
-	fj::Selector selector = (!fj::SelectorNHardest(nJetsRemove)) * fj::SelectorAbsEtaMax(0.6) * fj::SelectorPtMin(0.01);
+	fj::Selector selector = (!fj::SelectorNHardest(nJetsRemove)) * fj::SelectorAbsEtaMax(0.6);// * fj::SelectorPtMin(0.01);
 
 	// Create background estimator using the previously defined selector and jet algorithm
 	fj::JetMedianBackgroundEstimator bkgd_estimator(selector, jet_def_bkgd, area_def_bkgd);
 	
 	//Estimation of the background using only charged tracks
-	if (fPhiModulation) bkgd_estimator.set_rescaling_class(&rescaling);
+	if (fPhiModulation&&false) bkgd_estimator.set_rescaling_class(&rescaling);
 	bkgd_estimator.set_particles(fInputVectors);
 	
 	if (fBackSub){
@@ -328,12 +373,35 @@ std::vector<fj::PseudoJet> StPicoD0JetAnaMaker::JetReconstructionShape(vector<fj
 	    std::vector<fastjet::PseudoJet> constituents = jet.constituents();
 	    int d0_count = 0;
 	    for (size_t j = 0; j < constituents.size(); j++) {
+	    /*
 		// Předpokládáme, že D⁰ meson má hmotnost větší než 1 GeV
 		if (constituents[j].m() > 1.0) {
 		    d0_count++;
 		}
-	    }
+	    */
+	    
+	    int flag = constituents[j].user_index();
+		if (std::abs(flag) == 2) {
+		    d0_count++;
+		}
+		
 
+      
+      
+
+	    	
+	    }
+	  /*  
+	   if (d0_count == 1){
+	  
+	   for (size_t j = 0; j < constituents.size(); j++) {
+	   	   Int_t uid = constituents[j].user_index();
+	         cout << "pT: " << constituents[j].perp() << " flag: " << uid << endl;	
+	   }
+	   
+	}
+	
+	*/
 	    // Pokud je v jetu právě jeden D⁰ meson, provedeme odečet angularity
 	    if (d0_count == 1) {
 		fAngul10half = gensub(*shape10half, jet, info);
@@ -346,6 +414,56 @@ std::vector<fj::PseudoJet> StPicoD0JetAnaMaker::JetReconstructionShape(vector<fj
 	    
 	}
 	
+//#ifdef DEBUG_SHAPE_DUMP
+
+/*
+if (
+  // --- DEBUG: dump constituentů po rekonstrukci + diff vůči vstupu ---
+  std::unordered_set<std::string> _seen;  _seen.clear();
+
+  std::cout << "[Shape][END] N_jets=" << fInclusiveJets.size() << std::endl;
+  for (size_t i = 0; i < fInclusiveJets.size(); ++i) {
+    const auto& jet = fInclusiveJets[i];
+    auto cons = jet.constituents();
+    std::cout << "  [jet " << i
+              << "] pt=" << std::fixed << std::setprecision(6) << jet.perp()
+              << " y=" << jet.rap()
+              << " eta=" << jet.pseudorapidity()
+              << " nconst=" << cons.size() << "\n";
+    for (const auto& p : cons) {
+      const int f = p.user_index();
+      if (f == -1) continue; // ghosty přeskočit
+
+      const double E = p.E(), px = p.px(), py = p.py(), pz = p.pz();
+      const double eta = p.pseudorapidity();
+      const double y = p.rap();
+
+      const auto sig = _fmt(px)+","+_fmt(py)+","+_fmt(pz)+","+_fmt(E)+";f="+std::to_string(f);
+      _seen.insert(sig);
+
+      std::cout
+        << "    E=" << E
+        << " px=" << px << " py=" << py << " pz=" << pz
+        << " eta=" << eta << " y=" << y
+        << " flag=" << f << "\n";
+    }
+  }
+
+  // Vypiš, co zůstalo z inputu „nepoužité“ v žádném jetu
+  size_t n_missing = 0;
+  for (const auto& s : _inputsigs) {
+    if (_seen.find(s) == _seen.end()) ++n_missing;
+  }
+  std::cout << "[Shape][MISSING] count=" << n_missing << std::endl;
+  if (n_missing > 0) {
+    std::cout << "  (nize podpisy px,py,pz,E;f=flag zaokrouhlene na 1e-6)\n";
+    for (const auto& s : _inputsigs) {
+      if (_seen.find(s) == _seen.end()) std::cout << "    " << s << "\n";
+    }
+  }
+  std::cout.flush();
+#endif
+*/
 	return fInclusiveJets;
 	
 	
@@ -481,7 +599,7 @@ Bool_t fPhiModulation = true;
 	    } else {
 		    fastjet::PseudoJet temp_jet; 
 		    
-		    if (fMassiveTest) temp_jet = fastjet::PseudoJet(p.px(), p.py(), p.pz(), p.E());
+		    if (fMassiveTest) temp_jet = fastjet::PseudoJet(p.px(), p.py(), p.pz(), p.E()); //HERE
 		    else temp_jet = fastjet::PseudoJet(p.px(), p.py(), p.pz(), sqrt(p.px()*p.px()+p.py()*p.py()+p.pz()*p.pz()));
 		    
 		    temp_jet.set_user_index(p.user_index());
@@ -524,7 +642,7 @@ Bool_t fPhiModulation = true;
 	bkgd_estimator.set_particles(all_vectors);
 	
 	// Minimum pt for jets (below this, jets are excluded)
-	Double_t ptmin = -0.01;
+	Double_t ptmin = 0.;
 	vector<fj::PseudoJet> corrected_event;
 
 	// Apply background subtraction if enabled
@@ -572,8 +690,6 @@ Bool_t fPhiModulation = true;
 
 	backgroundDensity = bkgd_estimator.rho();
 
-
-
 	// Return the list of inclusive jets
 	return fInclusiveJets;
 }
@@ -581,6 +697,10 @@ Bool_t fPhiModulation = true;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 Int_t StPicoD0JetAnaMaker::Init(){
+
+	grefmultCorr = CentralityMaker::instance()->getgRefMultCorr_P16id();
+    grefmultCorr->setVzForWeight(6, -6.0, 6.0);
+  grefmultCorr->readScaleForWeight("StRoot/StRefMultCorr/macros/weight_grefmult_vpd30_vpd5_Run14_P16id.txt");
 
   	//Output file
   	mOutputFile = new TFile(mOutFileName.Data(), "RECREATE");
@@ -828,6 +948,21 @@ Int_t StPicoD0JetAnaMaker::Finish(){
 //-----------------------------------------------------------------------------
 Int_t StPicoD0JetAnaMaker::Make()
 {
+
+//CHANGE!!!//CHANGE!!!//CHANGE!!!//CHANGE!!!
+    // get base class pointer
+  mBaseMaker = static_cast<StJetFrameworkPicoBase*>(GetMaker("baseClassMaker"));
+  if(!mBaseMaker) {
+    LOG_WARN << " No baseMaker! Skip! " << endm;
+    return kStWarn;
+  }
+
+  // get bad run, dead & bad tower lists
+  badRuns = mBaseMaker->GetBadRuns();
+  deadTowers = mBaseMaker->GetDeadTowers();
+  badTowers = mBaseMaker->GetBadTowers();
+//CHANGE!!!//CHANGE!!!//CHANGE!!!//CHANGE!!!
+
   //Check if everything is loaded properly
   if (!mPicoDstMaker){
     LOG_WARN << " StPicoD0JetAnaMaker - No PicoDstMaker! Skip! " << endm;
@@ -855,15 +990,20 @@ Int_t StPicoD0JetAnaMaker::Make()
   
   Bool_t isBadRun = false;
   runId = event->runId();
-
-  //2014 good run list
+  
+  //cout << runId <<endl;
+/*
+  //2014 good run list //TEST
   if (mYear == 2014 && mycuts::AllBadRunList2014.count(runId)) {
       isBadRun = true;
   }
-
-        
-  if(isBadRun) return kStOK;
+  */
+  if (mYear == 2014 && mycuts::goodRun2014.count(runId)){ //CHANGE
+  isBadRun = false;
+  } else if (mYear == 2014) isBadRun = true;
   
+  if (mYear == 2014 && isBadRun) continue;
+
   //Check if the event is good (vertex, pile-up, MB trigger)
   if(!(isGoodEvent(mYear,hEventsCuts))) return kStOK;
 
@@ -879,12 +1019,21 @@ Int_t StPicoD0JetAnaMaker::Make()
   //Loadig of the GRefMultCorr information
   mGRefMultCorrUtil->init(runId);
   mGRefMultCorrUtil->initEvent(event->grefMult(),pVtx.z(),event->ZDCx()) ;
+  
+
 
   //Check if the event is in a bad run (due to centrality estimation)
   if (mGRefMultCorrUtil->isBadRun(runId)) return kStOK;
 
+
+  //TO DELETE
+  
+  grefmultCorr->init(runId);
+  grefmultCorr->initEvent(event->grefMult(),pVtx.z(),event->ZDCx()) ;
+
+
   //Loading of the centrality
-  centrality = mGRefMultCorrUtil->getCentralityBin9();
+  centrality = grefmultCorr->getCentralityBin9();
 
   //Check if the centrality is in the range
   if(centrality<0) return kStOK;
@@ -893,7 +1042,7 @@ Int_t StPicoD0JetAnaMaker::Make()
   hEventsCuts->Fill(6);
 
   //Loading of the weight for the centrality correction
-  weightCentrality = mGRefMultCorrUtil->getWeight();
+  weightCentrality = grefmultCorr->getWeight();
 
   //Filling events histograms
   hVtxZ->Fill(pVtx.z());
@@ -906,6 +1055,8 @@ Int_t StPicoD0JetAnaMaker::Make()
 
   //Loading event information
   eventId = event->eventId();
+  ///if (eventId != 415529) return kStOK;
+
   gRefMult = event->grefMult();
 
   //Loading of the number of tracks in the event
@@ -1039,8 +1190,11 @@ Int_t StPicoD0JetAnaMaker::Make()
 			    //The event is noted
 			    IsThereD0 = true;
 
+			    double ED0pionMass =sqrt( M_PION_PLUS*M_PION_PLUS+kaonPion.Px()*kaonPion.Px()+kaonPion.Py()*kaonPion.Py()+kaonPion.Pz()*kaonPion.Pz());
+			    
 			    //Saving of D0 four-momenta // E,       px,       py,        pz,         D0_antiD0,            D0 mass;
-			    FourMomentum D0_actual = {kaonPion.Energy(), kaonPion.Px(), kaonPion.Py(),  kaonPion.Pz(), (Double_t)pion->charge(), d0Mass};
+			    //FourMomentum D0_actual = {kaonPion.Energy(), kaonPion.Px(), kaonPion.Py(),  kaonPion.Pz(), (Double_t)pion->charge(), d0Mass};
+			    FourMomentum D0_actual = {ED0pionMass, kaonPion.Px(), kaonPion.Py(),  kaonPion.Pz(), (Double_t)pion->charge(), d0Mass}; //test
 			    D0_fourmomentum.push_back(D0_actual);
 			 
 
@@ -1145,11 +1299,92 @@ Int_t StPicoD0JetAnaMaker::Make()
 	SumE.fill(0);
 	
 	//for (Int_t iTow = 0; iTow < 4800; iTow++) cout << SumE[iTow] << endl;
+	
+	//-----------Charged-tracks--------------------------------------------------
+
+
+	//cerr << "----------------charged--------------" << endl;
+
+        //Loop over all tracks in the event
+        for (unsigned short iTrack = 0; iTrack < nTracks; ++iTrack){
+
+            //The i-th track is loaded
+            StPicoTrack* trk = picoDst->track(iTrack);
+
+            //Check if the track exists
+            if(!trk) continue;
+
+            //Filling jet track histogram before any cuts
+            hJetTracksDedx->Fill(trk->gPtot()*trk->charge(),trk->dEdx(),weightCentrality);
+            
+            /*
+            if (abs(trk->gMom().x() -0.154259)<0.001 && abs(trk->gMom().y() -0.203122) < 0.001) {
+            
+                //pT range cut
+            cout << "pT: " << trk->gPt() << endl;
+            cout << "fabs(trk->gMom().PseudoRapidity()): " << fabs(trk->gMom().PseudoRapidity()) << endl;
+            cout << "trk->nHitsFit(): " << trk->nHitsFit() << endl;
+            cout << "(1.0*trk->nHitsFit()/trk->nHitsMax()): " << (1.0*trk->nHitsFit()/trk->nHitsMax()) << endl;
+            cout << "fabs(trk->gDCA): " << fabs(trk->gDCA(event->primaryVertex().x(),event->primaryVertex().y(),event->primaryVertex().z())) << endl;
+            cout << "TADY1" << endl;}*/
+
+            //Check if the track is a good track
+            if (!isGoodJetTrack(trk,event)) continue;
+
+           // if (abs(trk->gMom().x() -0.154259)<0.001 && abs(trk->gMom().y() -0.203122) < 0.001) cout << "TADY2" << endl;
+
+            //Loading of the pT
+            Double_t pT = trk->gMom().Perp();
+            //Check if the pT is above 0.2 GeV/c or if it is NaN, because NaN!=NaN
+            if(pT != pT) continue; // NaN test.
+            //Loading of the eta, phi, dca and charge
+            Float_t eta = trk->gMom().PseudoRapidity();
+            Float_t phi = trk->gMom().Phi();
+            Float_t dca = (TVector3(event->primaryVertex().x(),event->primaryVertex().y(),event->primaryVertex().z()) - trk->origin()).Mag();
+            Float_t charged = trk->charge();
+
+            //Filling jet track histogram before after cuts
+            hJetTracksDedxAfterCuts->Fill(trk->gPtot()*trk->charge(),trk->dEdx(),weightCentrality);
+
+
+
+            //If the track is not daughter pion nor kion then...
+            if (DaughterPionTrackVector[nD0] != trk->id() && DaughterKaonTrackVector[nD0] != trk->id()){
+
+                //Defining the four-momentum of the charged particle, assumed pi+ mass
+                //                       px,       py,               pz,                                 E = sqrt(p^2 + m^2),
+                fastjet::PseudoJet pj(trk->gMom().x(),trk->gMom().y(),trk->gMom().z(), sqrt(trk->gMom().Mag()*trk->gMom().Mag()+M_PION_PLUS*M_PION_PLUS));
+       
+		//Set the flag to 3 if the particle is charged
+		pj.set_user_index(3);
+		
+            ///if (abs(trk->gMom().x() -0.154259)<0.001 && abs(trk->gMom().y() -0.203122) < 0.001) cout << "TADY3" << endl;
+		//cerr << "px: " << pj.px() << " py: " << pj.py() << " pz: " << pj.pz() << " E: " << pj.E() << endl;
+		
+                //Add the charged particle to the charged particle vector
+                chargedjetTracks.push_back(pj);
+                //Add the charged particle to the inclusive particle vector
+                input_particles.push_back(pj);
+                
+                //QA histograms
+                hJetTracksPt->Fill(pT,weightCentrality);
+                hJetTracksEtaPhi->Fill(phi, eta, weightCentrality);
+                hJetTracksNHitsFit->Fill(trk->nHitsFit(), weightCentrality);
+		hJetTracksNHitsRatio->Fill(1.0*trk->nHitsFit()/trk->nHitsMax(), weightCentrality);
+		hJetTracksDCA->Fill(dca, weightCentrality);
+		hJetConstCharge->Fill(charged, weightCentrality);
+		hJetConstRapPhi->Fill(pj.phi_std(),pj.rap(), weightCentrality);
+		hJetConstEtaPhi->Fill(pj.phi_std(),pj.eta(), weightCentrality);
+
+            }//End of if the track is not daughter pion nor kion
+
+     } //End of loop over all tracks
+	
 //-----------D0-track--------------------------------------------------------
 
         //Defining the four-momentum of the D0 candidate
         fastjet::PseudoJet pj(D0_fourmomentum[nD0].px,D0_fourmomentum[nD0].py,D0_fourmomentum[nD0].pz,D0_fourmomentum[nD0].E); //comp. testing
-
+        
         //Set flag to 2 if the D0 candidate is a D0 and to -2 if it is a anti-D0
         //It cannot be -1 or 1 because the default flag in FastJet is -1.
         pj.set_user_index(D0_fourmomentum[nD0].D0_antiD0*2);
@@ -1157,10 +1392,19 @@ Int_t StPicoD0JetAnaMaker::Make()
         //Add the D0 candidate to the inclusive particle vector
         input_particles.push_back(pj);
         
+        //Debug:
+	//cerr << "----------------D0--------------" << endl;
+	//cerr << "px: " << pj.px() << " py: " << pj.py() << " pz: " << pj.py() << " E: " << pj.E() << endl;
+        
 //-----------Neutral-tracks--------------------------------------------------
 
         //Fill array SumE with momenta of tracks which are matched to BEMC towers
-        GetCaloTrackMomentum(picoDst,TVector3(event->primaryVertex().x(),event->primaryVertex().y(),event->primaryVertex().z()));
+        GetCaloTrackMomentum(	picoDst,
+        			TVector3(event->primaryVertex().x(),event->primaryVertex().y(),event->primaryVertex().z()),
+        			DaughterPionTrackVector[nD0], DaughterKaonTrackVector[nD0]
+        			);
+
+	//cerr << "----------------neutral--------------" << endl;
 
         //Loop over all tracks in the event
         for (Int_t iTow = 0; iTow < 4800; iTow++){
@@ -1185,11 +1429,16 @@ Int_t StPicoD0JetAnaMaker::Make()
            
            if(mYear==2014) {
                   //Exclude bad towers, saved in JetInfo.h
-                  if (BadTowerMap[realtowID-1]) continue;
+                  ////if (BadTowerMap[realtowID-1]) continue; ///CHANGE!!!
 
                   //Calculate the tower energy
-                  towE = GetTowerCalibEnergy(realtowID); 
+                  ///towE = GetTowerCalibEnergy(realtowID); ///CHANGE!!!
                   towEUncal = towHit->energy();         
+                  towE = towHit->energy();///CHANGE!!!
+                  bool TowerOK = mBaseMaker->IsTowerOK(realtowID);      // kTRUE means GOOD///CHANGE!!!
+   		  bool TowerDead = mBaseMaker->IsTowerDead(realtowID);  // kTRUE means BAD///CHANGE!!!
+		  if(!TowerOK)  { continue; }///CHANGE!!!
+		  if(TowerDead) {continue; }///CHANGE!!!
 
               }
            if(mYear==2016) {
@@ -1224,7 +1473,9 @@ Int_t StPicoD0JetAnaMaker::Make()
                 return kStOK;
            }
 ////////////////////////////////////////////////////////////////////////////////// comp. test
-	   Double_t p = 1.0*TMath::Sqrt(towE*towE - 0*0);
+	   //Double_t p = 1.0*TMath::Sqrt(towE*towE - 0*0);
+	   Double_t p = 1.0*TMath::Sqrt(towE*towE - M_PION_PLUS*M_PION_PLUS); //TEST CHANGE
+	  
 	   Double_t posX = towerPosition.x();
   	   Double_t posY = towerPosition.y();
   	   Double_t posZ = towerPosition.z();
@@ -1249,6 +1500,10 @@ Int_t StPicoD0JetAnaMaker::Make()
                
                ////cout << "input_particles.push_back({"<<px<<","<<py<<","<<pz<<","<<towE<<"}); //neutral" << endl;
                //cout << px <<"," << py << "," << pz << endl;
+              // if (abs(inputTower.px()+0.229622) < 0.0001) cerr << "towID: " << iTow << " ET: " << ET << endl;
+                       //Debug:
+
+	       ////cout << "px: " << inputTower.px() << " py: " << inputTower.py() << " pz: " << inputTower.pz() << " E: " << inputTower.E() << endl;
                
                TVector3 NeutralPart(px, py, pz);
                hJetNeutralPt->Fill(NeutralPart.Perp(), weightCentrality);
@@ -1267,67 +1522,7 @@ Int_t StPicoD0JetAnaMaker::Make()
         if (nD0==0) hEventsCuts->Fill(8);
         
 
-//-----------Charged-tracks--------------------------------------------------
 
-
-
-
-        //Loop over all tracks in the event
-        for (unsigned short iTrack = 0; iTrack < nTracks; ++iTrack){
-
-            //The i-th track is loaded
-            StPicoTrack* trk = picoDst->track(iTrack);
-
-            //Check if the track exists
-            if(!trk) continue;
-
-            //Filling jet track histogram before any cuts
-            hJetTracksDedx->Fill(trk->gPtot()*trk->charge(),trk->dEdx(),weightCentrality);
-            
-
-            //Check if the track is a good track
-            if (!isGoodJetTrack(trk,event)) continue;
-
-            //Loading of the pT
-            Double_t pT = trk->gMom().Perp();
-            //Check if the pT is above 0.2 GeV/c or if it is NaN, because NaN!=NaN
-            if(pT != pT) continue; // NaN test.
-            //Loading of the eta, phi, dca and charge
-            Float_t eta = trk->gMom().PseudoRapidity();
-            Float_t phi = trk->gMom().Phi();
-            Float_t dca = (TVector3(event->primaryVertex().x(),event->primaryVertex().y(),event->primaryVertex().z()) - trk->origin()).Mag();
-            Float_t charged = trk->charge();
-
-            //Filling jet track histogram before after cuts
-            hJetTracksDedxAfterCuts->Fill(trk->gPtot()*trk->charge(),trk->dEdx(),weightCentrality);
-
-            //If the track is not daughter pion nor kion then...
-            if (DaughterPionTrackVector[nD0] != trk->id() && DaughterKaonTrackVector[nD0] != trk->id()){
-
-                //Defining the four-momentum of the charged particle, assumed pi+ mass
-                //                       px,       py,               pz,                                 E = sqrt(p^2 + m^2),
-                fastjet::PseudoJet pj(trk->gMom().x(),trk->gMom().y(),trk->gMom().z(), sqrt(trk->gMom().Mag()*trk->gMom().Mag()+M_PION_PLUS*M_PION_PLUS));
-       
-		//Set the flag to 3 if the particle is charged
-		pj.set_user_index(3);
-                //Add the charged particle to the charged particle vector
-                chargedjetTracks.push_back(pj);
-                //Add the charged particle to the inclusive particle vector
-                input_particles.push_back(pj);
-                
-                //QA histograms
-                hJetTracksPt->Fill(pT,weightCentrality);
-                hJetTracksEtaPhi->Fill(phi, eta, weightCentrality);
-                hJetTracksNHitsFit->Fill(trk->nHitsFit(), weightCentrality);
-		hJetTracksNHitsRatio->Fill(1.0*trk->nHitsFit()/trk->nHitsMax(), weightCentrality);
-		hJetTracksDCA->Fill(dca, weightCentrality);
-		hJetConstCharge->Fill(charged, weightCentrality);
-		hJetConstRapPhi->Fill(pj.phi_std(),pj.rap(), weightCentrality);
-		hJetConstEtaPhi->Fill(pj.phi_std(),pj.eta(), weightCentrality);
-
-            }//End of if the track is not daughter pion nor kion
-
-     } //End of loop over all tracks
 
 //-----------Background-estimation--------------------------------------------------
         //vector<fastjet::PseudoJet> input_particles2 =input_particles;
@@ -1450,6 +1645,8 @@ Int_t StPicoD0JetAnaMaker::Make()
 	if (fBgSubtraction == 1) corrected_jets = JetReconstructionICS(input_particles, centrality, R, true, psi2, difiter);
 	if (fBgSubtraction == 0 || fBgSubtraction == 2) corrected_jets = JetReconstructionShape(input_particles, centrality, R, true, psi2, difiter);
 
+	bool emptyFlag=true;
+
         //Loop over all jets
         for (UInt_t i = 0; i < corrected_jets.size(); i++) {
           
@@ -1477,7 +1674,7 @@ Int_t StPicoD0JetAnaMaker::Make()
             Double_t pT_jet = corrected_jets[i].perp();
             Double_t pT_jet_corr = -999;
             if (fBgSubtraction == 1) pT_jet_corr = pT_jet; //ICS
-            else if (fBgSubtraction == 0 || fBgSubtraction == 2) pT_jet_corr = pT_jet - backgroundDensity * corrected_jets[i].area(); //Area+Shape
+            else if (fBgSubtraction == 0 || fBgSubtraction == 2) pT_jet_corr = pT_jet - backgroundDensity * corrected_jets[i].area_4vector().perp(); //Area+Shape
             
             
             Double_t px_jet = corrected_jets[i].px();
@@ -1541,6 +1738,10 @@ Int_t StPicoD0JetAnaMaker::Make()
                     //z-value, z = pT(D0)*^pT(jet)/|pT(jet)|
                     zet = (D0_fourmomentum[nD0].px*px_jet_corr+D0_fourmomentum[nD0].py*py_jet_corr)/(pT_jet_corr*pT_jet_corr);
                     
+                    emptyFlag = false;
+                    
+                    //cout << "area je: " << corrected_jets[i].area() << " " << corrected_jets[i].area_4vector().perp() << endl;
+                    
                 }
 
             } //End of loop over all constituents of the i-th jet
@@ -1578,8 +1779,8 @@ Int_t StPicoD0JetAnaMaker::Make()
 		jetEta            = corrected_jets[i].pseudorapidity();
 		jetPhi            = corrected_jets[i].phi();
 		jetRapidity       = corrected_jets[i].rap();
-		jetArea           = corrected_jets[i].area();
-		jetPt             = pT_jet;
+		jetArea           = corrected_jets[i].area_4vector().perp();
+		jetPt             = pT_jet_corr;
 		if (fBgSubtraction == 0 || fBgSubtraction ==1){ //Area+ICS
 			lambda1_0_5       = lambda_1_0half;
 			lambda1_1         = lambda_1_1;
@@ -1613,6 +1814,73 @@ Int_t StPicoD0JetAnaMaker::Make()
             } //End of if the jet contains D0
 
         } //End of loop over all jets
+        
+        
+        //sometimes, D0 is rejected in jet procedure
+        if (emptyFlag) {
+
+                    
+                    cout << "THIS SHOULD NOT HAPPEN" << endl;
+                    
+
+        //Calculation of the D0 mass
+                Double_t D0mass = D0_fourmomentum[nD0].D0Mass;
+                //Calculation of the D0 pT (pT=sqrt(px^2+py^2))
+                Double_t D0_pT = sqrt(D0_fourmomentum[nD0].px*D0_fourmomentum[nD0].px+D0_fourmomentum[nD0].py*D0_fourmomentum[nD0].py);
+                
+                //Rapidity calculations and filling histogram
+                TLorentzVector v(D0_fourmomentum[nD0].px,D0_fourmomentum[nD0].py,D0_fourmomentum[nD0].pz,D0_fourmomentum[nD0].E);
+                //Double_t D0_rapidity = 1./2.*log((D0_fourmomentum[nD0].E+D0_fourmomentum[nD0].pz)/(D0_fourmomentum[nD0].E-D0_fourmomentum[nD0].pz));
+  		Double_t D0_rapidity = v.Rapidity();
+                Double_t D0_pseudorapidity = v.PseudoRapidity();
+                /*
+               cout << endl;
+               cout << "Tak, a dost!" << endl;
+               cout << "Event: " << eventId << " size: " << D0_fourmomentum.size() << " #:" << nD0 <<  endl;
+               cout << "m: " << D0mass << " pT: " << D0_pT << " y: " << D0_rapidity << " eta: " << D0_pseudorapidity << endl;
+               exit(1);
+                */
+		// D0 meson
+		d0PdgSign     = Int_t(D0_fourmomentum[nD0].D0_antiD0/2.);  //1 pro D0, -1 pro anti-D0
+		d0Mass        = D0mass;
+		d0Pt          = D0_pT;
+		d0Rapidity    = D0_rapidity;
+		d0Eta         = D0_pseudorapidity;
+
+		// Jet observables
+		jetEta            = d0Eta;
+		jetPhi            = v.Phi();
+		jetRapidity       = D0_rapidity;
+		jetArea           = -1;
+		jetPt             = D0_pT;
+		
+		lambda1_0_5       = 0;
+		lambda1_1         = 0;
+		lambda1_1_5       = 0;
+		lambda1_2         = 0;
+		lambda1_3         = 0;
+		momDisp           = sqrt(0);
+		z                 = 1;
+		nJetConst         = 1;
+		nJetsInEvent      = D0_fourmomentum.size();
+		jetD0DeltaR       = 0;
+		jetNeutralPtFrac  = 0;
+		jetTrackPtSum     = D0_pT;
+
+		// Nakonec naplň strom
+		Jets->Fill();
+   
+        
+        /*
+			cout << "XXXXXXXXXXXXXXXXXXXXXXXXXXX" << endl;
+			cout << D0_fourmomentum[nD0].E << " " << D0_fourmomentum[nD0].px << " " << D0_fourmomentum[nD0].py << " " << D0_fourmomentum[nD0].pz << " " << D0_fourmomentum[nD0].D0_antiD0 << " " << D0_fourmomentum[nD0].D0Mass << endl;
+				//Double_t D0_rapidity = 1./2.*log((D0_fourmomentum[nD0].E+D0_fourmomentum[nD0].pz)/(D0_fourmomentum[nD0].E-D0_fourmomentum[nD0].pz));
+
+
+				cout << "rap: " << D0_rapidity << " eta: " << D0_pseudorapidity << endl;
+			//exit(1);
+			*/
+        }
 
         corrected_jets.clear();
 
@@ -1664,7 +1932,7 @@ Double_t StPicoD0JetAnaMaker::vertexCorrectedEta(Double_t eta, Double_t vz) {
     //Function returns the corrected eta value
 }
 //---------------------------------------------------------------------------
-Bool_t StPicoD0JetAnaMaker::GetCaloTrackMomentum(StPicoDst *mPicoDst, TVector3 mPrimVtx) {
+Bool_t StPicoD0JetAnaMaker::GetCaloTrackMomentum(StPicoDst *mPicoDst, TVector3 mPrimVtx, Int_t pionDaugId, Int_t kaonDaugId) {
   //Function to calculate the momentum of the track matched to the calorimeter tower
 
   //Loading of the number of tracks in the event
@@ -1680,23 +1948,26 @@ Bool_t StPicoD0JetAnaMaker::GetCaloTrackMomentum(StPicoDst *mPicoDst, TVector3 m
 
       //Loading of the pT
       Double_t pT = gMom.Perp();
+      
+      //Add daughters anyway
+      bool isDaughter = false;
+      if (trk->id() == pionDaugId || trk->id() == kaonDaugId) isDaughter = true;
            
       //Check if the pT is above 0.2 GeV/c or if it is NaN, because NaN!=NaN
-      if(pT != pT || pT < 0.2) continue;
+      if(!isDaughter && (pT != pT || pT < 0.2)) continue;
       //Loading of eta
       Float_t eta = gMom.PseudoRapidity();
       //Exclude tracks outside of the TPC acceptance
-      if (fabs(eta) > 1) continue;
+      if (!isDaughter && (fabs(eta) > 1)) continue;
       //Loading of phi
       //Float_t phi = gMom.Phi();
-
       //Loading of the number of hits
       Float_t nHitsFit = trk->nHitsFit();
       //Loading of the number of hits possible
       Float_t nHitsMax = trk->nHitsMax();
+      
       //Exclude tracks with less than 15 hits or with a ratio of less than 0.52
-      if (nHitsFit < 15 || 1.*nHitsFit/nHitsMax < 0.52) continue;
-
+      if (!isDaughter && (nHitsFit < 15 || 1.*nHitsFit/nHitsMax < 0.52)) continue;
       //Loading of the value of the magnetic field
       Double_t Bfield = mPicoDst->event()->bField();
       //Loading of the helix
@@ -1712,11 +1983,12 @@ Bool_t StPicoD0JetAnaMaker::GetCaloTrackMomentum(StPicoDst *mPicoDst, TVector3 m
       //Calculation of the DCA in the x-y plane
       ////Float_t dca_z = dcaPoint.z() - vtx_z; //Test
       
-      Float_t dca_z = trk->gDCAz(vtx_z); //? TO DO
+      ///Float_t dca_z = trk->gDCAz(vtx_z); //? TO DO !!!CHANGE
+      
+      Float_t dca_z = trk->gDCA(vtx_x, vtx_y, vtx_z); //? TO DO
       
       //Exclude tracks with a DCA to the primary vertex in z of more than maxdcazhadroncorr (in RunPicoD0AnaMaker.C)
-      if (fabs(dca_z) > maxdcazhadroncorr) continue;
-
+      if (!isDaughter && (fabs(dca_z) > maxdcazhadroncorr)) continue;
       //Initialization and loading of the tower index
       Int_t TowIndex = -99999;
       TowIndex = trk->bemcTowerIndex(); //ID

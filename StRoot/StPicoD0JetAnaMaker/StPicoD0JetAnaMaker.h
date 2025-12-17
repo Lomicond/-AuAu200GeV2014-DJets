@@ -46,7 +46,7 @@
 #include "StiMaker/StKFVerticesCollection.h"
 #include "StPhysicalHelixD.hh"
 #include "TLorentzVector.h"
-
+#include "StJetFrameworkPicoBase.h"
 //#ifdef FASTJET_VERSION
 
 #ifndef __CINT__
@@ -110,7 +110,7 @@ class StPicoD0JetAnaMaker : public StMaker
     void setMaxNeutralFraction(Float_t max);
   void CalculateEventPlane();
     Int_t EP_IsGoodTrack(StPicoTrack *trk, TVector3 pVertex);
-    virtual Bool_t GetCaloTrackMomentum(StPicoDst *mPicoDst, TVector3 mPrimVtx);
+    virtual Bool_t GetCaloTrackMomentum(StPicoDst *mPicoDst, TVector3 mPrimVtx, Int_t pionDaugId, Int_t kaonDaugId);
     virtual Double_t GetTowerCalibEnergy(Int_t TowerId);
     virtual Double_t vertexCorrectedEta(Double_t eta, Double_t vz);
 
@@ -148,8 +148,17 @@ class StPicoD0JetAnaMaker : public StMaker
     const Double_t mBarrelRadius = 225.405;
 
 TTree* Jets;
+StRefMultCorr* grefmultCorr;
 
+///CHANGE!!!!
+    StJetFrameworkPicoBase *mBaseMaker;
+        // bad and dead tower list
+    std::set<Int_t>        badTowers;
+    std::set<Int_t>        deadTowers;
 
+    // bad run list
+    std::set<Int_t>        badRuns;
+///CHANGE!!!!
 //Event
 Int_t runId;
 Int_t eventId;

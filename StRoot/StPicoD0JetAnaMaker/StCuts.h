@@ -84,7 +84,7 @@ namespace mycuts
    extern const std::set<int> mbTriggers2014;
    extern const std::set<int> mbTriggers2016;
    
-   //extern const std::set<int> goodRun2014;
+   extern const std::set<int> goodRun2014;
    extern const std::set<int> AllBadRunList2014;
 }
 #endif

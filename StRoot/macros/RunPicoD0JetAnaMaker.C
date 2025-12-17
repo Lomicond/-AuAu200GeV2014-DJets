@@ -23,6 +23,7 @@ using namespace std;
 #else
 class StChain;
 #endif
+class StJetFrameworkPicoBase;
 
 StChain *chain;
 
@@ -52,11 +53,12 @@ void RunPicoD0JetAnaMaker(string pico="testPico.list",
       exit(0);
    }
 
-   int nEntries = 1000000;
+   int nEntries = 300000;
 
    if(Testing){
    pico=Form("TestLists/testPico_%.d.list",pYear);
    outFileName=Form("Test_AnaMaker_%.d.root",pYear);
+   pico="TestLists/Run14_SL22c.list";
    }
 
    string env_SL = getenv("STAR");
@@ -76,7 +78,21 @@ void RunPicoD0JetAnaMaker(string pico="testPico.list",
    loadSharedAnalysisLibraries();
    chain = new StChain();
 
-   StRefMultCorr* grefmultCorrUtil = new StRefMultCorr(RefMult, Runcode, prodID);
+//////
+    // create base class maker pointer
+    StJetFrameworkPicoBase *baseMaker = new StJetFrameworkPicoBase("baseClassMaker");
+    baseMaker->SetRunFlag(StJetFrameworkPicoBase::Run14_AuAu200_MB);                  // run flag (year)
+    baseMaker->SetRejectBadRuns(kFALSE);             // switch to load and than omit bad runs
+    baseMaker->SetBadRunListVers(StJetFrameworkPicoBase::fBadRuns_w_missing_HT);          // switch to select specific bad run version file
+    baseMaker->SetBadTowerListVers(9990200);
+    baseMaker->SetUsePrimaryTracks(kFALSE);       // use primary tracks
+    //cout<<baseMaker->GetName()<<endl;  // print name of class instance
+
+//////
+   //StRefMultCorr* grefmultCorrUtil = new StRefMultCorr(RefMult, Runcode, prodID);
+   StRefMultCorr* grefmultCorrUtil = new StRefMultCorr("grefmult_P16id");
+   //::kgrefmult_P16id
+   
    StPicoDstMaker* picoDstMaker = new StPicoDstMaker(StPicoDstMaker::IoRead, pico.c_str(), "picoDstMaker");
 
    StMessMgr *msg = StMessMgr::Instance();
