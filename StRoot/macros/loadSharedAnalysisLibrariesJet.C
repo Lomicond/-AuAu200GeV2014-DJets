@@ -63,6 +63,7 @@ void loadSharedAnalysisLibraries()
   gSystem->Load("StDbBroker");
   gSystem->Load("libgeometry_Tables"); //rember, order of loading makers matters
   gSystem->Load("StPicoD0JetAnaMaker");
+  gSystem->Load("StarClassLibrary");
   // gSystem->Load("StPicoBackground");
 
 	

@@ -33,7 +33,7 @@ void loadSharedLibraries();
 void loadSharedAnalysisLibraries();
 void progres(double N, double D);
 
-void RunPicoD0JetAnaMaker(string pico="testPico.list",
+void RunPicoD0JetAnaMaker_Neil(string pico="testPico.list",
  string outFileName="Test_AnaMaker.root"/*, string badRunListFileName = "picoList_bad_MB.list"*/,int pYear = 2014, bool Testing = true)
 {
    //Check STAR Library. Please set SL_version to the original star library used in the production from http://www.star.bnl.gov/devcgi/dbProdOptionRetrv.pl
@@ -54,7 +54,7 @@ void RunPicoD0JetAnaMaker(string pico="testPico.list",
       exit(0);
    }
 
-   int nEntries = 5000;
+   int nEntries = 300000;
    
    
 
@@ -107,7 +107,7 @@ void RunPicoD0JetAnaMaker(string pico="testPico.list",
    StPicoD0JetAnaMaker*  picoD0JetAnaMaker = new StPicoD0JetAnaMaker("picoD0JetAnaMaker", outFileName.c_str(), picoDstMaker,grefmultCorrUtil,pYear);
 
    // -------------- Run cuts ---------------------------
-   picoD0JetAnaMaker->setFRunBadlist(0); //0 - 2014 Hanseul's //1 - 2014 Neil's //StCuts.cxx
+   /**/picoD0JetAnaMaker->setFRunBadlist(1); //0 - 2014 Hanseul's //1 - 2014 Neil's //StCuts.cxx //CHANGE
 
    // -------------- Event cuts -------------------------
    picoD0JetAnaMaker->setFEventCut_vZ(6); //=< abs(v_z) [cm]
@@ -142,7 +142,7 @@ void RunPicoD0JetAnaMaker(string pico="testPico.list",
    picoD0JetAnaMaker->setD0PTRange(0,10); // <= p_{T}^{D^0} [GeV/c] <=
    picoD0JetAnaMaker->setD0MassRange(1.7,2.1); // <= m^{D^0} [GeV/c^2] <=
    picoD0JetAnaMaker->setD0Eta(false, 1); //true = used eta cut: abs(eta) <; false = not used
-   picoD0JetAnaMaker->setD0Mass(false, 1.86484); // true = input is used; false = reconstructed mass used for energy calc
+   /**/picoD0JetAnaMaker->setD0Mass(true, 0.13957); // true = input is used; false = reconstructed mass used for energy calc //CHANGE
 
    // ---------------Jet cuts----------------------------
    //Charged tracks
@@ -155,17 +155,17 @@ void RunPicoD0JetAnaMaker(string pico="testPico.list",
    
    //Tower inputs
    picoD0JetAnaMaker->setOnlyTrackBasedJets(false); //Trackbased = D0 + charged tracks
-   picoD0JetAnaMaker->setTowerCalibrEnergy(true); //true = Hanseul's energy calibration; false = production calibration (bad for 14)
-   picoD0JetAnaMaker->setTowerBadList(0); //0 - 2014 Hanseul's //1 - 2014 Neil's //JetInfo.h
+   /**/picoD0JetAnaMaker->setTowerCalibrEnergy(false); //true = Hanseul's energy calibration; false = production calibration (bad for 14) //CHANGE
+   /**/picoD0JetAnaMaker->setTowerBadList(1); //0 - 2014 Hanseul's //1 - 2014 Neil's //JetInfo.h //CHANGE
    picoD0JetAnaMaker->setTowerETRange(0.2,30); // < E_T [GeV] <=
-   picoD0JetAnaMaker->setTowerMass(0); // gamma [GeV/c^2]
+   /**/picoD0JetAnaMaker->setTowerMass(0.13957); // gamma [GeV/c^2] //CHANGE
    
    //Hadronic correction
    picoD0JetAnaMaker->setHadronCorr(1.); // 1. = 100%
    picoD0JetAnaMaker->setMinPtHadronCorr(0.2); // p_{T} >= [GeV/c]; maximum not set
    picoD0JetAnaMaker->setNHitsFitHadronCorr(15); // nHitsFit >= 
    picoD0JetAnaMaker->setNHitsRatioHadronCorr(0.52); // nHitsFit/nHitsMax >=
-   picoD0JetAnaMaker->setMaxDcaZHadronCorr(true, 3.0); // true = dca_z, false = dca; <= [cm]
+   /**/picoD0JetAnaMaker->setMaxDcaZHadronCorr(false, 3.0); // true = dca_z, false = dca; <= [cm] //CHANGE
    picoD0JetAnaMaker->setMassHadronCorr(0.13957); //pion+ 0.13957 [GeV/c^2]
    
    //Jets
@@ -175,11 +175,11 @@ void RunPicoD0JetAnaMaker(string pico="testPico.list",
    picoD0JetAnaMaker->setJetMaxNeutralPtFrac(false, 0.95); // false = not used; abs(eta) <= //Postponed to later analysis
    
    //Fastjet
-   picoD0JetAnaMaker->setJetFixedSeed(false, 12345); // false = random seed, true = second parameter is the seed
+   /**/picoD0JetAnaMaker->setJetFixedSeed(true, 12345); // false = random seed, true = second parameter is the seed //Change
    
    //Background calculation
    picoD0JetAnaMaker->setJetBgSubtraction(true, 2); // true = bg subtraction; method: 0 - Area based, 1 - ICS, 2 - jet shape
-   picoD0JetAnaMaker->setJetNHardestSkipped(2, 1); // First: 0-10%; Second: 10-80%
+   /**/picoD0JetAnaMaker->setJetNHardestSkipped(2, 2); // First: 0-10%; Second: 10-80% //CHANGE
    picoD0JetAnaMaker->setJetBgPhiModulation(false);
 
    //???
